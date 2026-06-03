@@ -176,9 +176,9 @@ Behavior: `confirmPayment()`, `failPayment()`, static `fromCart(...)`.
 
 | Event | Raised when |
 |-------|-------------|
-| `ProductAddedToCart` | A line is added. |
+| `CartItemAdded` | A line is added. |
 | `CartItemQuantityUpdated` | A line quantity changes. |
-| `ProductRemovedFromCart` | A line is removed. |
+| `CartItemRemoved` | A line is removed. |
 | `CartCheckedOut` | Cart transitions to `CHECKED_OUT`. |
 | `OrderPlaced` | Order created in `PENDING`. |
 | `OrderPaymentConfirmed` | Payment succeeds. |
@@ -230,33 +230,30 @@ domain exception thrown / HTTP status returned).
   1. Product does not exist → `ProductNotFound` → `404`.
   2. Product exists but is `INACTIVE` → treated as not found → `404`.
 
-### 4.3 Add product to cart (Command)
+### 4.3 Add item to cart (Command)
 - **In:** `CartId`, `?CustomerId`, `ProductId`, `int quantity`
 - **Out:** `CartView`
 - **Happy:**
-  - If `CartId` exists → add to it. If not provided / not found-as-new → create
-    a new `OPEN` cart for that id, then add.
-  - If the product is already a line → sum the quantities into that line.
-  - Capture `unitPrice` + `taxAmount` snapshot from the product.
+  1. If `CartId` is provided and exists → add to it
+  2. If `CartId` is not provided → create a new `OPEN` cart, then add.
+  3. If the product is already a line → sum the quantities into that line.
+  4. Capture `unitPrice` + `taxAmount` snapshot from the product.
 - **Sad:**
-  1. Cart exists but is `CHECKED_OUT` → `CartNotModifiable` → `409`.
-  2. `ProductId` does not exist → `ProductNotFound` → `404`.
-  3. Product is not `ACTIVE` → `ProductNotActive` → `409`.
-  4. Resulting line quantity > stock → `InsufficientStock` → `409`.
-  5. `quantity < 1` → `InvalidQuantity` → `422`.
-  6. `CustomerId` provided ≠ cart's `customerId` → `CartOwnershipMismatch` → `403`.
+  1. `CartId` provided but does not exist → `CartNotFound` → `404`.
+  2. Cart exists but is `CHECKED_OUT` → `CartNotModifiable` → `409`.
+  3. `ProductId` does not exist → `ProductNotFound` → `404`.
+  4. Product is not `ACTIVE` → `ProductNotActive` → `409`.
+  5. Resulting line quantity > stock → `InsufficientStock` → `409`.
+  6. `quantity < 1` → `InvalidQuantity` → `422`.
+  7. `CustomerId` provided ≠ cart's `customerId` → `CartOwnershipMismatch` → `403`.
 
-> **Cart creation policy:** to keep the endpoint idempotent and client-friendly,
-> a non-existent `CartId` on add is created on the fly as an `OPEN` cart with the
-> supplied `customerId`. A `CHECKED_OUT` cart is never silently recreated.
-
-### 4.4 Update product in cart (Command)
+### 4.4 Update cart item (Command)
 - **In:** `CartId`, `?CustomerId`, `ProductId`, `int quantity`
 - **Out:** `CartView`
 - **Happy:**
-  - `quantity == 0` → remove the line.
-  - `quantity > 0` → set the line to that quantity (absolute, not additive).
-  - Line absent and `quantity > 0` → add it as a new line.
+  1. `quantity == 0` → remove the line.
+  2. `quantity > 0` → set the line to that quantity (absolute, not additive).
+  3. Line absent and `quantity > 0` → add it as a new line.
 - **Sad:**
   1. `CartId` does not exist → `CartNotFound` → `404`.
   2. Cart is `CHECKED_OUT` → `CartNotModifiable` → `409`.
@@ -264,8 +261,9 @@ domain exception thrown / HTTP status returned).
   4. Product not `ACTIVE` → `ProductNotActive` → `409`.
   5. Requested quantity > stock → `InsufficientStock` → `409`.
   6. `CustomerId` mismatch → `CartOwnershipMismatch` → `403`.
+  7. `quantity < 0` → `InvalidQuantity` → `422`.
 
-### 4.5 Remove product from cart (Command)
+### 4.5 Remove cart item (Command)
 - **In:** `CartId`, `?CustomerId`, `ProductId`
 - **Out:** `CartView`
 - **Happy:** Removes the line for that product.
@@ -286,7 +284,7 @@ domain exception thrown / HTTP status returned).
 ### 4.7 Checkout (Command)
 - **In:** `CartId`, `?CustomerId`, `ShippingAddress`
 - **Out:** `OrderView` (includes `OrderId` for payment).
-- **Happy path (single transaction):**
+- **Happy:** All steps run inside a single transaction:
   1. Load cart; assert ownership and `OPEN` status; assert not empty.
   2. For each line, load the product and **validate coherence**: product exists,
      is active, has enough stock, and its current `unitPrice`/`taxAmount` match
@@ -300,7 +298,7 @@ domain exception thrown / HTTP status returned).
   insufficient, **refresh the offending `CartItem` snapshot**, **roll back** the
   checkout, and return a **warning** (`409` with a structured body listing the
   affected lines). No order is created and no stock is decremented.
-- **Other sad paths:**
+- **Sad:**
   1. `CartId` does not exist → `CartNotFound` → `404`.
   2. Cart is `CHECKED_OUT` → `CartNotModifiable` → `409`.
   3. A product no longer exists → `ProductNotFound` → `409` (checkout context).
@@ -325,15 +323,15 @@ domain exception thrown / HTTP status returned).
 - **In:** `OrderId`, `bool result`
 - **Out:** —
 - **Happy:**
-  - `result == true` → order → `PAYMENT_CONFIRMED`.
-  - `result == false` →
+  1. `result == true` → order → `PAYMENT_CONFIRMED`.
+  2. `result == false` →
     1. order → `PAYMENT_ERROR`,
     2. **restore** product stock for each line,
     3. reopen the cart (`CHECKED_OUT` → `OPEN`) so a new order can be generated.
 - **Sad:**
   1. `OrderId` does not exist → `OrderNotFound` → `404`.
   2. Order is not `PENDING` → `OrderNotPending` → `409`.
-  3. On `PAYMENT_ERROR`, the cart may have been deleted → **ignore silently**
+- **Note:** On `PAYMENT_ERROR`, the cart may have been deleted → **ignore silently**
      (stock is still restored; order still moves to `PAYMENT_ERROR`).
 
 ---
@@ -346,53 +344,141 @@ Source organized by bounded context, each split into the three hexagonal layers.
 src/
 ├── Shared/
 │   ├── Domain/
-│   │   ├── ValueObject/        # Money, Uuid base, Quantity
-│   │   ├── Event/              # DomainEvent interface, recorder trait
-│   │   └── Exception/          # DomainException base
+│   │   ├── ValueObject/
+│   │   │   ├── Money.php
+│   │   │   ├── UuidValueObject.php
+│   │   │   └── Quantity.php
+│   │   ├── Event/
+│   │   │   └── DomainEvent.php
+│   │   └── Exception/
+│   │       └── DomainException.php
 │   ├── Application/
-│   │   ├── Command/            # CommandBus interface, Command marker
-│   │   └── Query/              # QueryBus interface, Query marker
+│   │   ├── Command/
+│   │   │   ├── CommandBus.php
+│   │   │   └── Command.php
+│   │   └── Query/
+│   │       ├── QueryBus.php
+│   │       └── Query.php
 │   └── Infrastructure/
-│       ├── Bus/                # Messenger command/query bus adapters
-│       └── Http/               # Base controller, exception listener
+│       ├── Bus/
+│       │   ├── MessengerCommandBus.php
+│       │   └── MessengerQueryBus.php
+│       └── Http/
+│           ├── ApiController.php
+│           └── ExceptionListener.php
 │
 ├── Catalog/
 │   ├── Domain/
 │   │   ├── Product.php
 │   │   ├── ProductId.php
 │   │   ├── ProductStatus.php
-│   │   ├── ProductRepository.php        # port
+│   │   ├── ProductRepository.php
 │   │   └── Exception/
+│   │       ├── ProductNotFound.php
+│   │       └── ProductNotActive.php
 │   ├── Application/
-│   │   ├── Query/ListProducts/
-│   │   └── Query/GetProduct/
+│   │   ├── DTO/
+│   │   │   └── ProductView.php
+│   │   └── Query/
+│   │       ├── ListProducts/
+│   │       │   ├── ListProductsQuery.php
+│   │       │   └── ListProductsHandler.php
+│   │       └── GetProduct/
+│   │           ├── GetProductQuery.php
+│   │           └── GetProductHandler.php
 │   └── Infrastructure/
-│       ├── Persistence/Doctrine/        # repo impl + *.orm.xml mapping
-│       └── Http/ProductController.php
+│       ├── Persistence/
+│       │   └── Doctrine/
+│       │       ├── DoctrineProductRepository.php
+│       │       └── Product.orm.xml
+│       └── Http/
+│           └── ProductController.php
 │
 └── Sales/
     ├── Domain/
-    │   ├── Cart/                          # Cart, CartItem, CartStatus, CartRepository
-    │   ├── Order/                         # Order, OrderItem, OrderStatus, OrderRepository
-    │   ├── ValueObject/ShippingAddress.php, CustomerId.php
-    │   ├── Service/CheckoutCoherenceChecker.php
+    │   ├── Cart/
+    │   │   ├── Cart.php
+    │   │   ├── CartItem.php
+    │   │   ├── CartStatus.php
+    │   │   └── CartRepository.php
+    │   ├── Order/
+    │   │   ├── Order.php
+    │   │   ├── OrderItem.php
+    │   │   ├── OrderStatus.php
+    │   │   └── OrderRepository.php
+    │   ├── ValueObject/
+    │   │   ├── ShippingAddress.php
+    │   │   └── CustomerId.php
+    │   ├── Service/
+    │   │   └── CheckoutCoherenceChecker.php
     │   └── Exception/
+    │       ├── CartNotFound.php
+    │       ├── CartNotModifiable.php
+    │       ├── CartOwnershipMismatch.php
+    │       ├── EmptyCartCannotCheckout.php
+    │       ├── InsufficientStock.php
+    │       ├── InvalidQuantity.php
+    │       ├── InvalidShippingAddress.php
+    │       ├── OrderNotFound.php
+    │       ├── OrderNotPending.php
+    │       └── OrderOwnershipMismatch.php
     ├── Application/
-    │   ├── Command/AddProductToCart/
-    │   ├── Command/UpdateCartItem/
-    │   ├── Command/RemoveCartItem/
-    │   ├── Command/Checkout/
-    │   ├── Command/ProcessPayment/
-    │   ├── Query/GetCart/
-    │   └── Query/GetOrder/
+    │   ├── Command/
+    │   │   ├── AddItemToCart/
+    │   │   │   ├── AddItemToCartCommand.php
+    │   │   │   └── AddItemToCartHandler.php
+    │   │   ├── UpdateCartItem/
+    │   │   │   ├── UpdateCartItemCommand.php
+    │   │   │   └── UpdateCartItemHandler.php
+    │   │   ├── RemoveCartItem/
+    │   │   │   ├── RemoveCartItemCommand.php
+    │   │   │   └── RemoveCartItemHandler.php
+    │   │   ├── Checkout/
+    │   │   │   ├── CheckoutCommand.php
+    │   │   │   └── CheckoutHandler.php
+    │   │   └── ProcessPayment/
+    │   │       ├── ProcessPaymentCommand.php
+    │   │       └── ProcessPaymentHandler.php
+    │   ├── DTO/
+    │   │   ├── CartView.php
+    │   │   └── OrderView.php
+    │   └── Query/
+    │       ├── GetCart/
+    │       │   ├── GetCartQuery.php
+    │       │   └── GetCartHandler.php
+    │       └── GetOrder/
+    │           ├── GetOrderQuery.php
+    │           └── GetOrderHandler.php
     └── Infrastructure/
-        ├── Persistence/Doctrine/
-        └── Http/{CartController.php, OrderController.php}
+        ├── Persistence/
+        │   └── Doctrine/
+        │       ├── DoctrineCartRepository.php
+        │       ├── DoctrineOrderRepository.php
+        │       ├── Cart.orm.xml
+        │       └── Order.orm.xml
+        └── Http/
+            ├── CartController.php
+            └── OrderController.php
 
 tests/
-├── Unit/            # Domain + VO + aggregates (no container, no DB)
-├── Integration/     # Doctrine repositories against MySQL
-└── Functional/      # HTTP endpoints through the kernel
+├── Unit/
+│   ├── Shared/
+│   │   └── Domain/
+│   │       └── ValueObject/
+│   ├── Catalog/
+│   │   └── Domain/
+│   └── Sales/
+│       └── Domain/
+│           ├── Cart/
+│           └── Order/
+├── Integration/
+│   ├── Catalog/
+│   │   └── Infrastructure/
+│   └── Sales/
+│       └── Infrastructure/
+└── Functional/
+    ├── Catalog/
+    └── Sales/
 
 config/, migrations/, docker/, bin/   # Symfony, Doctrine migrations, compose
 ```
@@ -412,7 +498,7 @@ when absent).
 |---|--------|-------|----------|---------|
 | 1 | `GET` | `/api/products` | List products | `200` |
 | 2 | `GET` | `/api/products/{productId}` | Get product | `200` |
-| 3 | `POST` | `/api/carts/{cartId}/items` | Add product to cart | `200` |
+| 3 | `POST` | `/api/carts/{cartId}/items` | Add item to cart | `200` |
 | 4 | `PUT` | `/api/carts/{cartId}/items/{productId}` | Update cart item | `200` |
 | 5 | `DELETE` | `/api/carts/{cartId}/items/{productId}` | Remove cart item | `200` |
 | 6 | `GET` | `/api/carts/{cartId}` | Get cart | `200` |
@@ -422,7 +508,7 @@ when absent).
 
 ### 6.1 Representative request/response shapes
 
-**Add product to cart** — `POST /api/carts/{cartId}/items`
+**Add item to cart** — `POST /api/carts/{cartId}/items`
 ```jsonc
 // Request
 { "productId": "a3f1...uuid", "quantity": 2 }
@@ -555,8 +641,6 @@ optimization noted in §9).
   hydrating full object graphs.
 - **The `cartId` on `orders` is a plain column, not an association** — deliberately
   no relation/FK, matching the "carts may be deleted" decision.
-- **Optimistic locking** (a `version` column) on `products` is recommended to make
-  concurrent stock decrements safe under the checkout transaction.
 
 ---
 
@@ -607,8 +691,6 @@ Three layers, in order of count (a wide unit base, a focused functional top).
 - `idx_status` on `products` for the active-listing query.
 - Unique index doubles as the lookup index for cart-line operations.
 - Read queries hydrate into DTOs (array hydration) to skip full object graphs.
-- Optimistic locking (`version` on products) to avoid lost stock updates under
-  concurrency, instead of coarse table locks.
 - `BINARY(16)` UUID storage is noted as a future optimization; we ship `CHAR(36)`
   first for readability and only switch with a measured reason.
 - No caching layer in v1 — measure before adding one.
