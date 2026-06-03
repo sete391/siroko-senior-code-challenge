@@ -71,12 +71,16 @@ trait SalesApplicationTestHelpers
 
     protected function pendingOrder(): Order
     {
-        $cart = $this->cartWithItem();
-
-        return Order::fromCart(
+        $cart  = $this->cartWithItem();
+        $order = Order::fromCart(
             new OrderId(self::ORDER_ID),
             $cart,
             new ShippingAddress('Ada', 'Lovelace', 'ES123', 'Calle Mayor 1', 'Madrid', 'Madrid', '28013', 'ES'),
         );
+
+        // A persisted order has already had its OrderPlaced event dispatched.
+        $order->releaseEvents();
+
+        return $order;
     }
 }
