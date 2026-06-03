@@ -1,0 +1,14 @@
+framework:
+    messenger:
+        buses:
+            command.bus:
+                middleware:
+                    - doctrine_transaction
+            query.bus: ~
+
+        transports:
+            sync: 'sync://'
+
+        routing:
+            'Siroko\Shared\Application\Command\Command': sync
+            'Siroko\Shared\Application\Query\Query': sync

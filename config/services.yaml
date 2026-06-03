@@ -1,0 +1,21 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    Siroko\Shared\:
+        resource: '../src/Shared/'
+        exclude:
+            - '../src/Shared/Domain/'
+
+    Siroko\Catalog\:
+        resource: '../src/Catalog/'
+        exclude:
+            - '../src/Catalog/Domain/'
+
+    Siroko\Sales\:
+        resource: '../src/Sales/'
+        exclude:
+            - '../src/Sales/Domain/'
