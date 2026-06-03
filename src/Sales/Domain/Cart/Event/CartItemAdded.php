@@ -1,0 +1,40 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Siroko\Sales\Domain\Cart\Event;
+
+use Siroko\Catalog\Domain\ProductId;
+use Siroko\Sales\Domain\ValueObject\CartId;
+use Siroko\Shared\Domain\Event\DomainEvent;
+
+final class CartItemAdded implements DomainEvent
+{
+    public function __construct(
+        private readonly CartId $cartId,
+        private readonly ProductId $productId,
+        private readonly int $quantity,
+        private readonly \DateTimeImmutable $occurredOn,
+    ) {
+    }
+
+    public function occurredOn(): \DateTimeImmutable
+    {
+        return $this->occurredOn;
+    }
+
+    public function cartId(): CartId
+    {
+        return $this->cartId;
+    }
+
+    public function productId(): ProductId
+    {
+        return $this->productId;
+    }
+
+    public function quantity(): int
+    {
+        return $this->quantity;
+    }
+}
