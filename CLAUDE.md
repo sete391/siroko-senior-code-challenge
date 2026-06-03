@@ -69,6 +69,12 @@ tests/
 
 ## 4. Coding rules (from PLAN.md §11)
 
+0. **Test first, always (TDD).** Write the test before the implementation.
+   For every class, method, or invariant: red → green → refactor.
+   Never commit implementation code that does not have a corresponding test
+   written *before* it. This applies to domain services, aggregates, value
+   objects, handlers, and controllers alike.
+
 1. **No framework imports in Domain.** No Symfony, Doctrine, or Messenger
    `use` statements inside any `*/Domain` namespace.
 2. **Dependencies point inward only.** Domain ← Application ← Infrastructure.
