@@ -30,7 +30,8 @@
             "symfony/runtime": true
         },
         "bump-after-update": true,
-        "sort-packages": true
+        "sort-packages": true,
+        "platform-check": false
     },
     "autoload": {
         "psr-4": {
