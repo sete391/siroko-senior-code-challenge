@@ -1,0 +1,14 @@
+# Enforce LF for all text files (project runs on Docker/Linux)
+* text=auto eol=lf
+
+# Binary files — no conversion
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.zip  binary
