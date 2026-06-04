@@ -23,12 +23,23 @@ use Siroko\Shared\Domain\Exception\DomainException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
+use Symfony\Component\Messenger\Exception\HandlerFailedException;
 
 final class ExceptionListener
 {
     public function onKernelException(ExceptionEvent $event): void
     {
         $throwable = $event->getThrowable();
+
+        // Symfony Messenger wraps handler exceptions in HandlerFailedException.
+        // Keys are handler class names (strings), not integers — use reset().
+        if ($throwable instanceof HandlerFailedException) {
+            $nested = $throwable->getWrappedExceptions();
+            $first  = reset($nested);
+            if ($first instanceof \Throwable) {
+                $throwable = $first;
+            }
+        }
 
         if ($throwable instanceof CheckoutCoherenceFailed) {
             $event->setResponse($this->coherenceResponse($throwable));
@@ -68,6 +79,7 @@ final class ExceptionListener
     {
         return match (true) {
             $e instanceof ProductNotFound,
+            $e instanceof ProductNotActive,   // §4.2: inactive treated as not found → 404
             $e instanceof CartNotFound,
             $e instanceof OrderNotFound,
             $e instanceof CartItemNotFound   => Response::HTTP_NOT_FOUND,
@@ -76,7 +88,6 @@ final class ExceptionListener
             $e instanceof OrderOwnershipMismatch => Response::HTTP_FORBIDDEN,
 
             $e instanceof CartNotModifiable,
-            $e instanceof ProductNotActive,
             $e instanceof InsufficientStock,
             $e instanceof EmptyCartCannotCheckout,
             $e instanceof OrderNotPending    => Response::HTTP_CONFLICT,

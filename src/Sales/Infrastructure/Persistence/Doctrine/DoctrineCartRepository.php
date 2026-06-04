@@ -41,9 +41,19 @@ final class DoctrineCartRepository implements CartRepository
 
     public function save(Cart $cart): void
     {
-        $this->em->persist($cart);
-        $this->syncItems($cart);
-        $this->em->flush();
+        if (!$this->em->isOpen()) {
+            // EntityManager was closed after a transaction rollback (e.g. coherence
+            // failure in CheckoutHandler). Persist only the refreshed item snapshots
+            // via DBAL — the cart scalar fields are unchanged in this path.
+            $this->syncItems($cart);
+            return;
+        }
+
+        $this->em->wrapInTransaction(function () use ($cart): void {
+            $this->em->persist($cart);
+            $this->em->flush();   // parent row committed first
+            $this->syncItems($cart);
+        });
     }
 
     private function hydrateItems(Cart $cart): void

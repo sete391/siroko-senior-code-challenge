@@ -135,6 +135,12 @@ abstract class FunctionalTestCase extends WebTestCase
     ): array {
         $cart = $this->seedCartWithItem($productId, $priceAmount, $taxAmount, $quantity);
 
+        // Decrement product stock to mirror what the real checkout endpoint does.
+        $product = $this->products->findById($productId);
+        assert($product !== null);
+        $product->decreaseStock($quantity);
+        $this->products->save($product);
+
         // Reload after clear
         $cart = $this->carts->findById($cart->id());
         assert($cart !== null);

@@ -41,9 +41,11 @@ final class DoctrineOrderRepository implements OrderRepository
 
     public function save(Order $order): void
     {
-        $this->em->persist($order);
-        $this->syncItems($order);
-        $this->em->flush();
+        $this->em->wrapInTransaction(function () use ($order): void {
+            $this->em->persist($order);
+            $this->em->flush();   // parent row committed first
+            $this->syncItems($order);
+        });
     }
 
     private function hydrateItems(Order $order): void
