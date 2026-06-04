@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Siroko\Shared\Infrastructure\Http;
 
+use Siroko\Catalog\Domain\Exception\InsufficientStock as CatalogInsufficientStock;
 use Siroko\Catalog\Domain\Exception\ProductNotActive;
 use Siroko\Catalog\Domain\Exception\ProductNotFound;
 use Siroko\Sales\Domain\Exception\CartItemNotFound;
@@ -89,6 +90,7 @@ final class ExceptionListener
 
             $e instanceof CartNotModifiable,
             $e instanceof InsufficientStock,
+            $e instanceof CatalogInsufficientStock,
             $e instanceof EmptyCartCannotCheckout,
             $e instanceof OrderNotPending    => Response::HTTP_CONFLICT,
 

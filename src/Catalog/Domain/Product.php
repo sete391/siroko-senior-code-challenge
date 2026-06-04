@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Siroko\Catalog\Domain;
 
+use Siroko\Catalog\Domain\Exception\InsufficientStock;
 use Siroko\Shared\Domain\ValueObject\Money;
 
 final class Product
@@ -98,9 +99,7 @@ final class Product
         $result = $this->quantity - $amount;
 
         if ($result < 0) {
-            throw new \InvalidArgumentException(
-                sprintf('Cannot decrease stock by %d, only %d available.', $amount, $this->quantity),
-            );
+            throw InsufficientStock::forProduct($this->id, $amount, $this->quantity);
         }
 
         $this->quantity  = $result;

@@ -7,6 +7,7 @@ namespace Siroko\Tests\Unit\Catalog\Domain;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Siroko\Catalog\Domain\Exception\InsufficientStock;
 use Siroko\Catalog\Domain\Product;
 use Siroko\Catalog\Domain\ProductId;
 use Siroko\Catalog\Domain\ProductStatus;
@@ -124,11 +125,26 @@ final class ProductTest extends TestCase
     #[Test]
     public function it_rejects_decrease_that_would_go_below_zero(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/cannot decrease stock/i');
+        $this->expectException(InsufficientStock::class);
+        $this->expectExceptionMessageMatches('/insufficient stock/i');
 
         $product = $this->makeProduct(quantity: 3);
         $product->decreaseStock(4);
+    }
+
+    #[Test]
+    public function insufficient_stock_exception_carries_product_id_and_amounts(): void
+    {
+        $product = $this->makeProduct(quantity: 3);
+
+        try {
+            $product->decreaseStock(5);
+            self::fail('Expected InsufficientStock to be thrown.');
+        } catch (InsufficientStock $e) {
+            self::assertStringContainsString(self::VALID_ID, $e->getMessage());
+            self::assertStringContainsString('5', $e->getMessage());
+            self::assertStringContainsString('3', $e->getMessage());
+        }
     }
 
     #[Test]
