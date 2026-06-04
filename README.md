@@ -554,6 +554,9 @@ spec. The [`ai/`](ai/) folder holds that documentation:
 - [`ai/DECISIONS.md`](ai/DECISIONS.md) — a log of architectural decisions and
   **rejected** proposals, with the rationale for each (e.g. why optimistic
   locking was left out of scope).
+- [`ai/PROMPTS.md`](ai/PROMPTS.md) — the 5 key prompts used during implementation,
+  showing how the AI was directed at each major phase (planning, domain layer,
+  handlers, infrastructure, functional tests).
 
 See also [`CLAUDE.md`](CLAUDE.md) at the repository root — the operational guide
 and binding coding rules used while implementing the project.
