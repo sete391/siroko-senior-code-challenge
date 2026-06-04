@@ -2,18 +2,29 @@ doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
         profiling_collect_backtrace: '%kernel.debug%'
+        types:
+            product_id:  Siroko\Shared\Infrastructure\Persistence\Doctrine\Type\ProductIdType
+            cart_id:     Siroko\Shared\Infrastructure\Persistence\Doctrine\Type\CartIdType
+            order_id:    Siroko\Shared\Infrastructure\Persistence\Doctrine\Type\OrderIdType
+            customer_id: Siroko\Shared\Infrastructure\Persistence\Doctrine\Type\CustomerIdType
     orm:
         validate_xml_mapping: true
         naming_strategy: doctrine.orm.naming_strategy.underscore
         auto_mapping: false
         mappings:
+            Shared:
+                type: xml
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Shared/Infrastructure/Persistence/Doctrine/Mapping'
+                prefix: 'Siroko\Shared\Domain'
+                alias: Shared
             Catalog:
                 type: xml
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Catalog/Infrastructure/Persistence/Doctrine'
                 prefix: 'Siroko\Catalog\Domain'
                 alias: Catalog
-            SalesCart:
+            Sales:
                 type: xml
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Sales/Infrastructure/Persistence/Doctrine'

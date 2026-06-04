@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping
+    xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                        https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="Siroko\Catalog\Domain\Product" table="products">
+
+        <id name="id" type="product_id" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="name"        type="string"  length="255" nullable="false"/>
+        <field name="description" type="text"    nullable="false"/>
+        <field name="taxAmount"   type="integer" column="tax_amount" nullable="false"/>
+        <field name="quantity"    type="integer" nullable="false"/>
+
+        <field name="status" type="string" length="16" column="status" nullable="false"
+               enum-type="Siroko\Catalog\Domain\ProductStatus"/>
+
+        <embedded name="unitPrice" class="Siroko\Shared\Domain\ValueObject\Money" column-prefix="unit_price_"/>
+
+        <field name="createdAt" type="datetime_immutable" column="created_at" nullable="false"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at" nullable="false"/>
+
+        <indexes>
+            <index name="idx_status" columns="status"/>
+        </indexes>
+
+    </entity>
+
+</doctrine-mapping>

@@ -19,3 +19,49 @@ services:
         resource: '../src/Sales/'
         exclude:
             - '../src/Sales/Domain/'
+
+    # Bind named buses to their interface implementations
+    Siroko\Shared\Infrastructure\Bus\MessengerCommandBus:
+        arguments:
+            $commandBus: '@command.bus'
+
+    Siroko\Shared\Infrastructure\Bus\MessengerQueryBus:
+        arguments:
+            $queryBus: '@query.bus'
+
+    Siroko\Shared\Infrastructure\Event\MessengerEventBus:
+        arguments:
+            $eventBus: '@event.bus'
+
+    # Interface aliases
+    Siroko\Shared\Application\Command\CommandBus:
+        alias: Siroko\Shared\Infrastructure\Bus\MessengerCommandBus
+
+    Siroko\Shared\Application\Query\QueryBus:
+        alias: Siroko\Shared\Infrastructure\Bus\MessengerQueryBus
+
+    Siroko\Shared\Application\Event\EventBus:
+        alias: Siroko\Shared\Infrastructure\Event\MessengerEventBus
+
+    Siroko\Shared\Application\Transaction\TransactionManager:
+        alias: Siroko\Shared\Infrastructure\Transaction\DoctrineTransactionManager
+
+    Siroko\Shared\Application\Identity\IdGenerator:
+        alias: Siroko\Shared\Infrastructure\Identity\SymfonyUidGenerator
+
+    Siroko\Catalog\Domain\ProductRepository:
+        alias: Siroko\Catalog\Infrastructure\Persistence\Doctrine\DoctrineProductRepository
+
+    Siroko\Sales\Domain\Cart\CartRepository:
+        alias: Siroko\Sales\Infrastructure\Persistence\Doctrine\DoctrineCartRepository
+
+    Siroko\Sales\Domain\Order\OrderRepository:
+        alias: Siroko\Sales\Infrastructure\Persistence\Doctrine\DoctrineOrderRepository
+
+    # Domain services — excluded from auto-scan but needed by application handlers
+    Siroko\Sales\Domain\Service\CheckoutCoherenceChecker: ~
+
+    # Exception listener
+    Siroko\Shared\Infrastructure\Http\ExceptionListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.exception, method: onKernelException, priority: 10 }

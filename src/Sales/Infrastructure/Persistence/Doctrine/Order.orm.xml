@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Order is mapped as an ORM entity for its scalar fields and the
+  ShippingAddress embeddable. The $items collection is NOT mapped here —
+  it is managed via DBAL in DoctrineOrderRepository.
+-->
+<doctrine-mapping
+    xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping
+                        https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+
+    <entity name="Siroko\Sales\Domain\Order\Order" table="orders">
+
+        <id name="id" type="order_id" column="id">
+            <generator strategy="NONE"/>
+        </id>
+
+        <field name="cartId"     type="cart_id"     column="cart_id"     nullable="false"/>
+        <field name="customerId" type="customer_id" column="customer_id" nullable="true"/>
+
+        <embedded name="totalProducts" class="Siroko\Shared\Domain\ValueObject\Money" column-prefix="total_products_"/>
+        <embedded name="totalTax"      class="Siroko\Shared\Domain\ValueObject\Money" column-prefix="total_tax_"/>
+        <embedded name="totalOrder"    class="Siroko\Shared\Domain\ValueObject\Money" column-prefix="total_order_"/>
+
+        <embedded name="shippingAddress" class="Siroko\Sales\Domain\ValueObject\ShippingAddress" column-prefix="shipping_"/>
+
+        <field name="status" type="string" length="24" column="status" nullable="false"
+               enum-type="Siroko\Sales\Domain\Order\OrderStatus"/>
+
+        <field name="createdAt" type="datetime_immutable" column="created_at" nullable="false"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at" nullable="false"/>
+
+    </entity>
+
+</doctrine-mapping>

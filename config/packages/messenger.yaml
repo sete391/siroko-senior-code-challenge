@@ -1,14 +1,18 @@
 framework:
     messenger:
         buses:
-            command.bus:
-                middleware:
-                    - doctrine_transaction
+            command.bus: ~
             query.bus: ~
+            event.bus:
+                default_middleware:
+                    enabled: true
+                    allow_no_handlers: true
+                    allow_no_senders: true
 
         transports:
             sync: 'sync://'
 
         routing:
             'Siroko\Shared\Application\Command\Command': sync
-            'Siroko\Shared\Application\Query\Query': sync
+            'Siroko\Shared\Application\Query\Query':   sync
+            'Siroko\Shared\Domain\Event\DomainEvent':  sync

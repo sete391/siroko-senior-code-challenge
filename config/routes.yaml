@@ -1,11 +1,13 @@
 # yaml-language-server: $schema=../vendor/symfony/routing/Loader/schema/routing.schema.json
 
-# This file is the entry point to configure the routes of your app.
-# Methods with the #[Route] attribute are automatically imported.
-# See also https://symfony.com/doc/current/routing.html
+catalog_controllers:
+    resource:
+        path: '../src/Catalog/Infrastructure/Http/'
+        namespace: Siroko\Catalog\Infrastructure\Http
+    type: attribute
 
-# To list all registered routes, run the following command:
-#   bin/console debug:router
-
-controllers:
-    resource: routing.controllers
+sales_controllers:
+    resource:
+        path: '../src/Sales/Infrastructure/Http/'
+        namespace: Siroko\Sales\Infrastructure\Http
+    type: attribute
