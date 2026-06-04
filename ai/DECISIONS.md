@@ -1,13 +1,17 @@
-## DECISION-001: Optimistic locking
-**Proposed by:** Claude Code (in generated PLAN.md)
+# CartItem snapshot and checkout coherence
+When a product is added to a cart, the AI proposed capturing the price and tax as a snapshot on the CartItem and copying it directly to the Order at checkout without any further validation. I rejected this because a snapshot can go stale between the moment a user adds a product and the moment they actually checkout (prices change and stock runs out). I insisted on keeping the snapshot on the CartItem as intended, but adding a coherence check at checkout time that compares the snapshot against the live product and refreshes it if anything has changed, rolling back and returning a 409 with the affected lines so the user can review their cart before trying again.
 
-**Proposal:** Add a `version` column to `products` table and use Doctrine
-optimistic locking to handle concurrent stock decrements safely.
+# Cart-Order traceability without a foreign key
+I proposed storing the cartId on the Order for traceability. The AI argued that the Order should be self-contained and not depend on the Cart for its existence, and suggested deleting the Cart once the Order was created. I rejected that because traceability between a cart and its resulting order is operationally valuable (support teams need to trace back what happened). The AI then proposed an event log table to maintain that traceability in a decoupled way. I rejected that too because it adds significant complexity without benefit at this scope. The final decision was to store cartId as a plain column on orders with no foreign key constraint, so it survives even if the cart is eventually deleted, giving traceability without coupling.
 
-**Rejected because:**
-Adds complexity without demonstrable value within the scope of this challenge.
-The challenge does not require concurrency handling, and implementing it without
-specific tests to prove its correctness would be speculative engineering.
+# No optimistic locking on product stock
+The AI proposed adding a version column to the products table and using Doctrine's optimistic locking to safely handle concurrent stock decrements. I rejected it because the challenge does not require concurrency handling. Adding a locking mechanism to solve a problem that is explicitly out of scope would be speculative engineering that adds complexity without demonstrable value within the boundaries of this project.
 
-**Decision:**
-Shipped without optimistic locking.
+# ReflectionProperty for items hydration in repositories
+To avoid mapping cart_items and order_items as Doctrine collections — which would force ArrayCollection dependencies into the domain aggregates — I chose to manage items via raw DBAL and hydrate them back into the aggregate's private $items property using ReflectionProperty. The AI suggested alternatives: a withItems() named constructor and a Doctrine PostLoad lifecycle callback. Both were rejected because they would contaminate the domain with infrastructure concerns. ReflectionProperty keeps the aggregate pure at the cost of a naming contract that is enforced by dedicated integration tests — if $items is ever renamed, the test fails immediately.
+
+# Explicit type guard over assert() in Doctrine custom types
+When fixing PHPStan errors in the Doctrine custom ID types, the AI proposed using assert(is_string($value)) before constructing the value object. I rejected it because assert() is compiled out with zend.assertions=-1, which is the standard production setting in PHP. It is a PHPStan workaround, not a runtime defence. The correct solution is an explicit if (!is_string($value)) { throw new \UnexpectedValueException(...) } that fails fast with a clear message regardless of PHP configuration.
+
+# Simulated payment callback endpoint
+The challenge asked for payment processing as part of the checkout flow. The AI initially proposed a single checkout step that would transition the cart directly into a confirmed order with no intermediate state. I rejected this because it collapsed two distinct business events (order creation and payment confirmation) into one, making it impossible to model payment failure correctly. I proposed adding a separate endpoint that simulates the response from a real payment gateway, receiving a boolean result. This allowed the order to be created in a PENDING state after checkout and then transitioned to either PAYMENT_CONFIRMED or PAYMENT_ERROR based on the payment result, which in turn enabled modelling the failure scenario: restoring product stock and reopening the cart so the customer can try again.
