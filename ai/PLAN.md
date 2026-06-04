@@ -331,8 +331,9 @@ domain exception thrown / HTTP status returned).
 - **Sad:**
   1. `OrderId` does not exist → `OrderNotFound` → `404`.
   2. Order is not `PENDING` → `OrderNotPending` → `409`.
-- **Note:** On `PAYMENT_ERROR`, the cart may have been deleted → **ignore silently**
-     (stock is still restored; order still moves to `PAYMENT_ERROR`).
+- **Note:** On `PAYMENT_ERROR`, the cart or any product may have been deleted
+  → **ignore silently** in both cases (order still moves to `PAYMENT_ERROR`;
+  stock is restored for the products that still exist).
 
 ---
 
@@ -744,8 +745,10 @@ These are binding. Violating any of them is a defect, not a style preference.
     PHPStan/CS gates to make code pass.
 11. **Do not store money as floats.** Integer cents only.
 12. **Do not add an FK from `orders.cart_id` to `carts`** (see §10).
-13. **Do not silently swallow errors** other than the one explicitly allowed:
-    a missing cart during a payment-failure stock restoration (§4.9).
+13. **Do not silently swallow errors** other than the two explicitly allowed
+    during payment-failure stock restoration (§4.9): a missing cart and a
+    missing product are both ignored silently, since either may have been
+    deleted after the order was placed.
 14. **Do not over-engineer.** No event sourcing, no separate read database, no
     microservices, no speculative abstractions. Keep CQRS at the application
     boundary as described in §2.3.

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Siroko\Sales\Application\Command\ProcessPayment;
 
-use Siroko\Catalog\Domain\Exception\ProductNotFound;
 use Siroko\Catalog\Domain\ProductRepository;
 use Siroko\Sales\Domain\Cart\CartRepository;
 use Siroko\Sales\Domain\Exception\OrderNotFound;
@@ -59,9 +58,10 @@ final class ProcessPaymentHandler
         foreach ($order->items() as $item) {
             $product = $this->productRepository->findById($item->productId());
 
-            // A missing product is NOT silently swallowed (constraint 13).
+            // A product may have been deleted after the order was placed.
+            // Like a missing cart, it is ignored silently (§4.9 / constraint 13).
             if (null === $product) {
-                throw ProductNotFound::withId($item->productId());
+                continue;
             }
 
             $product->restoreStock($item->quantity());

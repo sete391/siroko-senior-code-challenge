@@ -7,7 +7,6 @@ namespace Siroko\Tests\Unit\Sales\Application;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Siroko\Catalog\Domain\Exception\ProductNotFound;
 use Siroko\Catalog\Domain\Product;
 use Siroko\Catalog\Domain\ProductRepository;
 use Siroko\Sales\Application\Command\ProcessPayment\ProcessPaymentCommand;
@@ -166,15 +165,20 @@ final class ProcessPaymentHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_product_not_found_when_a_product_is_missing_on_restore(): void
+    public function it_silently_ignores_a_missing_product_during_stock_restore(): void
     {
-        // Constraint 13: only a missing CART is silently swallowed, not a product.
-        $this->expectException(ProductNotFound::class);
-
-        $this->orderRepo->method('findById')->willReturn($this->pendingOrder());
+        // A product may have been deleted after the order was placed.
+        // Like a missing cart, it is ignored silently (§4.9 / constraint 13).
+        $order = $this->pendingOrder();
+        $this->orderRepo->method('findById')->willReturn($order);
         $this->productRepo->method('findById')->willReturn(null);
+        $this->cartRepo->method('findById')->willReturn(null);
+        $this->productRepo->expects($this->never())->method('save');
 
         $this->handle(result: false);
+
+        // Order still transitions to PAYMENT_ERROR despite the missing product.
+        self::assertSame(OrderStatus::PAYMENT_ERROR, $order->status());
     }
 
     // ------------------------------------------------------------------ sad paths
