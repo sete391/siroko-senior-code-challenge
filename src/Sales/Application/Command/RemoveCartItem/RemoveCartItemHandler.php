@@ -10,7 +10,9 @@ use Siroko\Sales\Domain\Cart\CartRepository;
 use Siroko\Sales\Domain\Exception\CartNotFound;
 use Siroko\Sales\Domain\ValueObject\CartId;
 use Siroko\Sales\Domain\ValueObject\CustomerId;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler(bus: 'command.bus')]
 final class RemoveCartItemHandler
 {
     public function __construct(

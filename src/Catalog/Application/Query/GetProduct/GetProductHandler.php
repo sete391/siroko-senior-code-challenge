@@ -9,7 +9,9 @@ use Siroko\Catalog\Domain\Exception\ProductNotActive;
 use Siroko\Catalog\Domain\Exception\ProductNotFound;
 use Siroko\Catalog\Domain\ProductId;
 use Siroko\Catalog\Domain\ProductRepository;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler(bus: 'query.bus')]
 final class GetProductHandler
 {
     public function __construct(

@@ -22,7 +22,9 @@ use Siroko\Sales\Domain\ValueObject\ShippingAddress;
 use Siroko\Shared\Application\Event\EventBus;
 use Siroko\Shared\Application\Identity\IdGenerator;
 use Siroko\Shared\Application\Transaction\TransactionManager;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler(bus: 'command.bus')]
 final class CheckoutHandler
 {
     public function __construct(

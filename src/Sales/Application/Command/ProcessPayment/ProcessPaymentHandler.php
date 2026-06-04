@@ -12,7 +12,9 @@ use Siroko\Sales\Domain\Order\OrderRepository;
 use Siroko\Sales\Domain\ValueObject\OrderId;
 use Siroko\Shared\Application\Event\EventBus;
 use Siroko\Shared\Application\Transaction\TransactionManager;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler(bus: 'command.bus')]
 final class ProcessPaymentHandler
 {
     public function __construct(

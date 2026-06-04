@@ -9,7 +9,9 @@ use Siroko\Sales\Domain\Exception\OrderNotFound;
 use Siroko\Sales\Domain\Order\OrderRepository;
 use Siroko\Sales\Domain\ValueObject\CustomerId;
 use Siroko\Sales\Domain\ValueObject\OrderId;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler(bus: 'query.bus')]
 final class GetOrderHandler
 {
     public function __construct(
