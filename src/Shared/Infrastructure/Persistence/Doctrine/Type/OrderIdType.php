@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siroko\Shared\Infrastructure\Persistence\Doctrine\Type;
 
 use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Types\Exception\InvalidType;
 use Doctrine\DBAL\Types\StringType;
 use Siroko\Sales\Domain\ValueObject\OrderId;
 
@@ -18,7 +19,9 @@ final class OrderIdType extends StringType
             return $value;
         }
 
-        assert(is_string($value));
+        if (!is_string($value)) {
+            throw InvalidType::new($value, OrderId::class, ['null', OrderId::class, 'string']);
+        }
 
         return new OrderId($value);
     }
@@ -33,7 +36,9 @@ final class OrderIdType extends StringType
             return $value->value();
         }
 
-        assert(is_string($value));
+        if (!is_string($value)) {
+            throw InvalidType::new($value, 'string', ['null', OrderId::class, 'string']);
+        }
 
         return $value;
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siroko\Shared\Infrastructure\Persistence\Doctrine\Type;
 
 use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Types\Exception\InvalidType;
 use Doctrine\DBAL\Types\StringType;
 use Siroko\Catalog\Domain\ProductId;
 
@@ -18,7 +19,9 @@ final class ProductIdType extends StringType
             return $value;
         }
 
-        assert(is_string($value));
+        if (!is_string($value)) {
+            throw InvalidType::new($value, ProductId::class, ['null', ProductId::class, 'string']);
+        }
 
         return new ProductId($value);
     }
@@ -33,7 +36,9 @@ final class ProductIdType extends StringType
             return $value->value();
         }
 
-        assert(is_string($value));
+        if (!is_string($value)) {
+            throw InvalidType::new($value, 'string', ['null', ProductId::class, 'string']);
+        }
 
         return $value;
     }
