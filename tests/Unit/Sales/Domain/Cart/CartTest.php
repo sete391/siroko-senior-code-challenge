@@ -47,6 +47,7 @@ final class CartTest extends TestCase
         $customerId = new CustomerId(self::CUSTOMER_ID);
         $cart       = Cart::create(new CartId(self::CART_ID), $customerId);
 
+        self::assertNotNull($cart->customerId());
         self::assertTrue($cart->customerId()->equals($customerId));
     }
 

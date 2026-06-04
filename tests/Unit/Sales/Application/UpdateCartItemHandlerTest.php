@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siroko\Tests\Unit\Sales\Application;
 
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Siroko\Catalog\Domain\Exception\ProductNotActive;
 use Siroko\Catalog\Domain\Exception\ProductNotFound;
@@ -102,6 +103,7 @@ final class UpdateCartItemHandlerTest extends TestCase
 
     // ------------------------------------------------------------------ helpers
 
+    /** @return array{CartRepository&MockObject, ProductRepository&MockObject} */
     private function repos(
         bool $cartExists = true,
         bool $productExists = true,

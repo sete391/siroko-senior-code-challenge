@@ -52,6 +52,7 @@ final class ProcessPaymentHandler
         });
 
         // Events are dispatched only after the transaction has committed.
+        assert($order !== null);
         $this->eventBus->dispatch(...$order->releaseEvents());
     }
 

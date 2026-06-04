@@ -58,12 +58,15 @@ final class DoctrineOrderRepository implements OrderRepository
         );
 
         $items = array_map(
-            static fn(array $row) => new OrderItem(
-                new ProductId($row['product_id']),
-                new Money((int) $row['unit_price_amount'], $row['unit_price_currency']),
-                (int) $row['tax_amount'],
-                new Quantity((int) $row['quantity']),
-            ),
+            static function (array $row): OrderItem {
+                /** @var array{product_id: string, unit_price_amount: string|int, unit_price_currency: string, tax_amount: string|int, quantity: string|int} $row */
+                return new OrderItem(
+                    new ProductId($row['product_id']),
+                    new Money((int) $row['unit_price_amount'], $row['unit_price_currency']),
+                    (int) $row['tax_amount'],
+                    new Quantity((int) $row['quantity']),
+                );
+            },
             $rows,
         );
 

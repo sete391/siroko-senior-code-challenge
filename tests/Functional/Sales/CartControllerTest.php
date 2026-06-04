@@ -6,8 +6,8 @@ namespace Siroko\Tests\Functional\Sales;
 
 use PHPUnit\Framework\Attributes\Test;
 use Siroko\Catalog\Domain\ProductId;
-use Siroko\Catalog\Domain\ProductStatus;
 use Siroko\Sales\Domain\Cart\CartStatus;
+use Siroko\Sales\Domain\Cart\Cart;
 use Siroko\Sales\Domain\ValueObject\CartId;
 use Siroko\Sales\Domain\ValueObject\CustomerId;
 use Siroko\Tests\Functional\FunctionalTestCase;
@@ -23,16 +23,18 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct();
         $cart    = $this->seedCartWithItem($product->id());
 
-        $body = $this->json('GET', '/api/carts/' . $cart->id()->value());
+        $body  = $this->json('GET', '/api/carts/' . $cart->id()->value());
+        $items = $this->assertList($body['items']);
+        $item0 = $this->assertBody($items[0]);
 
         self::assertSame(200, $this->statusCode());
         self::assertSame($cart->id()->value(), $body['cartId']);
         self::assertSame('OPEN', $body['status']);
         self::assertNull($body['customerId']);
-        self::assertCount(1, $body['items']);
-        self::assertSame($product->id()->value(), $body['items'][0]['productId']);
-        self::assertSame(4500, $body['items'][0]['unitPriceAmount']);
-        self::assertSame('EUR', $body['items'][0]['unitPriceCurrency']);
+        self::assertCount(1, $items);
+        self::assertSame($product->id()->value(), $item0['productId']);
+        self::assertSame(4500, $item0['unitPriceAmount']);
+        self::assertSame('EUR', $item0['unitPriceCurrency']);
     }
 
     #[Test]
@@ -52,12 +54,10 @@ final class CartControllerTest extends FunctionalTestCase
         $customerId = new CustomerId($this->idGenerator->generate());
         $cart       = $this->seedCartWithItem($product->id(), customerId: $customerId);
 
-        $wrongCustomer = $this->idGenerator->generate(); // different UUID
-
         $body = $this->json(
             'GET',
             '/api/carts/' . $cart->id()->value(),
-            headers: ['X-Customer-Id' => $wrongCustomer],
+            headers: ['X-Customer-Id' => $this->idGenerator->generate()],
         );
 
         self::assertSame(403, $this->statusCode());
@@ -72,18 +72,20 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct();
         $cartId  = $this->idGenerator->generate();
 
-        $body = $this->json(
+        $body  = $this->json(
             'POST',
             '/api/carts/' . $cartId . '/items',
             ['productId' => $product->id()->value(), 'quantity' => 1],
         );
+        $items = $this->assertList($body['items']);
+        $item0 = $this->assertBody($items[0]);
 
         self::assertSame(200, $this->statusCode());
         self::assertSame($cartId, $body['cartId']);
         self::assertSame('OPEN', $body['status']);
-        self::assertCount(1, $body['items']);
-        self::assertSame($product->id()->value(), $body['items'][0]['productId']);
-        self::assertSame(1, $body['items'][0]['quantity']);
+        self::assertCount(1, $items);
+        self::assertSame($product->id()->value(), $item0['productId']);
+        self::assertSame(1, $item0['quantity']);
     }
 
     #[Test]
@@ -111,15 +113,17 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct(stock: 20);
         $cart    = $this->seedCartWithItem($product->id(), quantity: 2);
 
-        $body = $this->json(
+        $body  = $this->json(
             'POST',
             '/api/carts/' . $cart->id()->value() . '/items',
             ['productId' => $product->id()->value(), 'quantity' => 3],
         );
+        $items = $this->assertList($body['items']);
+        $item0 = $this->assertBody($items[0]);
 
         self::assertSame(200, $this->statusCode());
-        self::assertCount(1, $body['items']);
-        self::assertSame(5, $body['items'][0]['quantity']); // merged 2 + 3
+        self::assertCount(1, $items);
+        self::assertSame(5, $item0['quantity']); // merged 2 + 3
     }
 
     #[Test]
@@ -181,7 +185,7 @@ final class CartControllerTest extends FunctionalTestCase
             'POST',
             '/api/carts/' . $cart->id()->value() . '/items',
             ['productId' => $product->id()->value(), 'quantity' => 1],
-            ['X-Customer-Id' => $this->idGenerator->generate()], // different customer
+            ['X-Customer-Id' => $this->idGenerator->generate()],
         );
 
         self::assertSame(403, $this->statusCode());
@@ -196,14 +200,16 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct(stock: 20);
         $cart    = $this->seedCartWithItem($product->id(), quantity: 2);
 
-        $body = $this->json(
+        $body  = $this->json(
             'PUT',
             '/api/carts/' . $cart->id()->value() . '/items/' . $product->id()->value(),
             ['quantity' => 5],
         );
+        $items = $this->assertList($body['items']);
+        $item0 = $this->assertBody($items[0]);
 
         self::assertSame(200, $this->statusCode());
-        self::assertSame(5, $body['items'][0]['quantity']);
+        self::assertSame(5, $item0['quantity']);
     }
 
     #[Test]
@@ -212,14 +218,15 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct();
         $cart    = $this->seedCartWithItem($product->id(), quantity: 2);
 
-        $body = $this->json(
+        $body  = $this->json(
             'PUT',
             '/api/carts/' . $cart->id()->value() . '/items/' . $product->id()->value(),
             ['quantity' => 0],
         );
+        $items = $this->assertList($body['items']);
 
         self::assertSame(200, $this->statusCode());
-        self::assertCount(0, $body['items']);
+        self::assertCount(0, $items);
         self::assertSame(0, $body['totalProductsAmount']);
     }
 
@@ -247,13 +254,14 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct();
         $cart    = $this->seedCartWithItem($product->id(), quantity: 1);
 
-        $body = $this->json(
+        $body  = $this->json(
             'DELETE',
             '/api/carts/' . $cart->id()->value() . '/items/' . $product->id()->value(),
         );
+        $items = $this->assertList($body['items']);
 
         self::assertSame(200, $this->statusCode());
-        self::assertCount(0, $body['items']);
+        self::assertCount(0, $items);
     }
 
     #[Test]
@@ -280,20 +288,21 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct(priceAmount: 4500, taxAmount: 945, stock: 10);
         $cart    = $this->seedCartWithItem($product->id(), quantity: 2);
 
-        $body = $this->json(
+        $body  = $this->json(
             'POST',
             '/api/carts/' . $cart->id()->value() . '/checkout',
             ['shippingAddress' => $this->addressPayload()],
         );
+        $items = $this->assertList($body['items']);
 
         self::assertSame(201, $this->statusCode());
         self::assertArrayHasKey('orderId', $body);
         self::assertSame('PENDING', $body['status']);
-        self::assertCount(1, $body['items']);
+        self::assertCount(1, $items);
         self::assertSame(9000,  $body['totalProductsAmount']); // 4500 × 2
         self::assertSame(1890,  $body['totalTaxAmount']);
         self::assertSame(10890, $body['totalOrderAmount']);
-        self::assertSame('Ada',  $body['shippingFirstName']);
+        self::assertSame('Ada', $body['shippingFirstName']);
     }
 
     #[Test]
@@ -338,9 +347,8 @@ final class CartControllerTest extends FunctionalTestCase
     #[Test]
     public function checkout_returns_409_for_empty_cart(): void
     {
-        $cartId = new CartId($this->idGenerator->generate());
-        // Seed an empty cart directly
-        $emptyCart = \Siroko\Sales\Domain\Cart\Cart::create($cartId, null);
+        $cartId    = new CartId($this->idGenerator->generate());
+        $emptyCart = Cart::create($cartId, null);
         $this->carts->save($emptyCart);
         $this->em->clear();
 
@@ -378,7 +386,6 @@ final class CartControllerTest extends FunctionalTestCase
         $product = $this->seedProduct(priceAmount: 4500, stock: 10);
         $cart    = $this->seedCartWithItem($product->id(), priceAmount: 4500, quantity: 1);
 
-        // Change the product price directly in DB to trigger coherence failure.
         $this->em->getConnection()->update(
             'products',
             ['unit_price_amount' => 5500],
@@ -386,19 +393,21 @@ final class CartControllerTest extends FunctionalTestCase
         );
         $this->em->clear();
 
-        $body = $this->json(
+        $body          = $this->json(
             'POST',
             '/api/carts/' . $cart->id()->value() . '/checkout',
             ['shippingAddress' => $this->addressPayload()],
         );
+        $affectedItems = $this->assertList($body['affectedItems']);
+        $affected0     = $this->assertBody($affectedItems[0]);
 
         self::assertSame(409, $this->statusCode());
         self::assertSame('checkout_coherence_failed', $body['error']);
         self::assertArrayHasKey('message', $body);
         self::assertArrayHasKey('affectedItems', $body);
-        self::assertCount(1, $body['affectedItems']);
-        self::assertSame($product->id()->value(), $body['affectedItems'][0]['productId']);
-        self::assertSame('price_changed', $body['affectedItems'][0]['reason']);
+        self::assertCount(1, $affectedItems);
+        self::assertSame($product->id()->value(), $affected0['productId']);
+        self::assertSame('price_changed', $affected0['reason']);
     }
 
     #[Test]
@@ -421,17 +430,15 @@ final class CartControllerTest extends FunctionalTestCase
         );
         self::assertSame(409, $this->statusCode());
 
-        // Cart snapshot must be updated to the new price.
         $reloaded = $this->reloadCart($cart->id());
         self::assertNotNull($reloaded);
         self::assertSame(5500, $reloaded->items()[0]->unitPrice()->amount);
 
-        // No order must have been created.
         $orderCount = $this->em->getConnection()->fetchOne(
             'SELECT COUNT(*) FROM orders WHERE cart_id = ?',
             [$cart->id()->value()],
         );
-        self::assertSame('0', (string) $orderCount);
+        self::assertSame('0', is_scalar($orderCount) ? (string) $orderCount : '0');
     }
 
     #[Test]

@@ -221,6 +221,7 @@ final class OrderTest extends TestCase
         );
     }
 
+    /** @param array{string, Money, int, int, int} ...$items */
     private function cartWith(array ...$items): Cart
     {
         $cart = Cart::create(new CartId(self::CART_ID), null);

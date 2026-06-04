@@ -20,9 +20,10 @@ final class ProductControllerTest extends FunctionalTestCase
         $body = $this->json('GET', '/api/products');
 
         self::assertSame(200, $this->statusCode());
-        self::assertIsArray($body);
 
-        $ids = array_column($body, 'id');
+        /** @var list<array<string, mixed>> $products */
+        $products = $body;
+        $ids = array_column($products, 'id');
         self::assertContains($product->id()->value(), $ids);
     }
 
@@ -34,7 +35,9 @@ final class ProductControllerTest extends FunctionalTestCase
         $body = $this->json('GET', '/api/products');
 
         self::assertSame(200, $this->statusCode());
-        $ids = array_column($body, 'id');
+        /** @var list<array<string, mixed>> $products */
+        $products = $body;
+        $ids      = array_column($products, 'id');
         self::assertNotContains($inactive->id()->value(), $ids);
     }
 
@@ -45,9 +48,11 @@ final class ProductControllerTest extends FunctionalTestCase
 
         $body = $this->json('GET', '/api/products');
 
-        $found = null;
-        foreach ($body as $item) {
-            if ($item['id'] === $product->id()->value()) {
+        /** @var list<array<string, mixed>> $products */
+        $products = $body;
+        $found    = null;
+        foreach ($products as $item) {
+            if (($item['id'] ?? null) === $product->id()->value()) {
                 $found = $item;
                 break;
             }
@@ -62,8 +67,8 @@ final class ProductControllerTest extends FunctionalTestCase
         self::assertArrayHasKey('unitPriceCurrency', $found);
         self::assertArrayHasKey('quantity',          $found);
         self::assertArrayHasKey('status',            $found);
-        self::assertSame(6000,   $found['unitPriceAmount']);
-        self::assertSame('EUR',  $found['unitPriceCurrency']);
+        self::assertSame(6000,     $found['unitPriceAmount']);
+        self::assertSame('EUR',    $found['unitPriceCurrency']);
         self::assertSame('ACTIVE', $found['status']);
     }
 

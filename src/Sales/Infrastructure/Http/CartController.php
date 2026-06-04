@@ -34,8 +34,8 @@ final class CartController extends ApiController
         $cart = $this->dispatch(new AddItemToCartCommand(
             cartId:     $cartId,
             customerId: $request->headers->get('X-Customer-Id'),
-            productId:  (string) ($body['productId'] ?? ''),
-            quantity:   (int) ($body['quantity'] ?? 0),
+            productId:  isset($body['productId']) && is_string($body['productId']) ? $body['productId'] : '',
+            quantity:   isset($body['quantity'])  && is_int($body['quantity'])     ? $body['quantity']  : 0,
         ));
 
         return new JsonResponse($cart);
@@ -50,7 +50,7 @@ final class CartController extends ApiController
             cartId:     $cartId,
             customerId: $request->headers->get('X-Customer-Id'),
             productId:  $productId,
-            quantity:   (int) ($body['quantity'] ?? 0),
+            quantity:   isset($body['quantity']) && is_int($body['quantity']) ? $body['quantity'] : 0,
         ));
 
         return new JsonResponse($cart);
@@ -72,19 +72,20 @@ final class CartController extends ApiController
     public function checkout(string $cartId, Request $request): JsonResponse
     {
         $body    = $this->decodeBody($request);
-        $address = $body['shippingAddress'] ?? [];
+        /** @var array<string, mixed> $address */
+        $address = is_array($body['shippingAddress'] ?? null) ? $body['shippingAddress'] : [];
 
         $order = $this->dispatch(new CheckoutCommand(
             cartId:     $cartId,
             customerId: $request->headers->get('X-Customer-Id'),
-            firstName:  (string) ($address['firstName'] ?? ''),
-            lastName:   (string) ($address['lastName']  ?? ''),
-            vatNumber:  (string) ($address['vatNumber'] ?? ''),
-            street:     (string) ($address['street']    ?? ''),
-            city:       (string) ($address['city']      ?? ''),
-            state:      (string) ($address['state']     ?? ''),
-            zipCode:    (string) ($address['zipCode']   ?? ''),
-            country:    (string) ($address['country']   ?? ''),
+            firstName:  isset($address['firstName'])  && is_string($address['firstName'])  ? $address['firstName']  : '',
+            lastName:   isset($address['lastName'])   && is_string($address['lastName'])   ? $address['lastName']   : '',
+            vatNumber:  isset($address['vatNumber'])  && is_string($address['vatNumber'])  ? $address['vatNumber']  : '',
+            street:     isset($address['street'])     && is_string($address['street'])     ? $address['street']     : '',
+            city:       isset($address['city'])       && is_string($address['city'])       ? $address['city']       : '',
+            state:      isset($address['state'])      && is_string($address['state'])      ? $address['state']      : '',
+            zipCode:    isset($address['zipCode'])    && is_string($address['zipCode'])    ? $address['zipCode']    : '',
+            country:    isset($address['country'])    && is_string($address['country'])    ? $address['country']    : '',
         ));
 
         return new JsonResponse($order, Response::HTTP_CREATED);
@@ -98,6 +99,7 @@ final class CartController extends ApiController
             return [];
         }
 
+        /** @var array<string, mixed>|null $decoded */
         $decoded = json_decode($content, true);
 
         return is_array($decoded) ? $decoded : [];

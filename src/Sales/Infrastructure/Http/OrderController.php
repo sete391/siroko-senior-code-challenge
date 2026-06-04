@@ -25,8 +25,9 @@ final class OrderController extends ApiController
     #[Route('/{orderId}/payment', methods: ['POST'])]
     public function processPayment(string $orderId, Request $request): JsonResponse
     {
+        /** @var array<string, mixed> $body */
         $body   = json_decode($request->getContent(), true) ?? [];
-        $result = (bool) ($body['result'] ?? false);
+        $result = isset($body['result']) && is_bool($body['result']) ? $body['result'] : false;
 
         $this->dispatch(new ProcessPaymentCommand($orderId, $result));
 

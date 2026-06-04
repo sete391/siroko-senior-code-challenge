@@ -22,10 +22,13 @@ final class OrderControllerTest extends FunctionalTestCase
 
         $body = $this->json('GET', '/api/orders/' . $order->id()->value());
 
+        $items = $this->assertList($body['items']);
+        $item  = $this->assertBody($items[0]);
+
         self::assertSame(200, $this->statusCode());
         self::assertSame($order->id()->value(), $body['orderId']);
         self::assertSame('PENDING', $body['status']);
-        self::assertCount(1, $body['items']);
+        self::assertCount(1, $items);
 
         // Money totals
         self::assertSame(9000,  $body['totalProductsAmount']); // 4500 × 2
@@ -34,7 +37,6 @@ final class OrderControllerTest extends FunctionalTestCase
         self::assertSame('EUR', $body['currency']);
 
         // Order item snapshot fields
-        $item = $body['items'][0];
         self::assertSame($product->id()->value(), $item['productId']);
         self::assertSame(4500, $item['unitPriceAmount']);
         self::assertSame('EUR', $item['unitPriceCurrency']);

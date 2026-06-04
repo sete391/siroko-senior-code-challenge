@@ -18,7 +18,9 @@ final class CustomerIdType extends StringType
             return $value;
         }
 
-        return new CustomerId((string) $value);
+        assert(is_string($value));
+
+        return new CustomerId($value);
     }
 
     public function convertToDatabaseValue(mixed $value, AbstractPlatform $platform): ?string
@@ -31,7 +33,9 @@ final class CustomerIdType extends StringType
             return $value->value();
         }
 
-        return (string) $value;
+        assert(is_string($value));
+
+        return $value;
     }
 
     public function getName(): string

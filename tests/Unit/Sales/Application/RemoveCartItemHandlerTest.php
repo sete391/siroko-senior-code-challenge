@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Siroko\Tests\Unit\Sales\Application;
 
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Siroko\Sales\Application\Command\RemoveCartItem\RemoveCartItemCommand;
 use Siroko\Sales\Application\Command\RemoveCartItem\RemoveCartItemHandler;
@@ -61,7 +62,7 @@ final class RemoveCartItemHandlerTest extends TestCase
 
     // ------------------------------------------------------------------ helpers
 
-    private function repoWith(?object $cart): CartRepository
+    private function repoWith(?object $cart): CartRepository&MockObject
     {
         $repo = $this->createMock(CartRepository::class);
         $repo->method('findById')->willReturn($cart);

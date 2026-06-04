@@ -103,6 +103,7 @@ final class CheckoutHandler
         }
 
         // Events are dispatched only after the transaction has committed.
+        assert($cart !== null);
         $this->eventBus->dispatch(...$cart->releaseEvents());
         $this->eventBus->dispatch(...$order->releaseEvents());
 

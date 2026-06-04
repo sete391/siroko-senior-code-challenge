@@ -31,7 +31,6 @@ final class ListProductsHandlerTest extends TestCase
         $result = (new ListProductsHandler($repo))(new ListProductsQuery());
 
         self::assertCount(2, $result);
-        self::assertContainsOnlyInstancesOf(ProductView::class, $result);
         self::assertSame(self::PID_1, $result[0]->id);
         self::assertSame(self::PID_2, $result[1]->id);
     }

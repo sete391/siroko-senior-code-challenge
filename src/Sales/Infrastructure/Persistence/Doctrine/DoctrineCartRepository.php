@@ -66,12 +66,15 @@ final class DoctrineCartRepository implements CartRepository
         );
 
         $items = array_map(
-            static fn(array $row) => new CartItem(
-                new ProductId($row['product_id']),
-                new Money((int) $row['unit_price_amount'], $row['unit_price_currency']),
-                (int) $row['tax_amount'],
-                new Quantity((int) $row['quantity']),
-            ),
+            static function (array $row): CartItem {
+                /** @var array{product_id: string, unit_price_amount: string|int, unit_price_currency: string, tax_amount: string|int, quantity: string|int} $row */
+                return new CartItem(
+                    new ProductId($row['product_id']),
+                    new Money((int) $row['unit_price_amount'], $row['unit_price_currency']),
+                    (int) $row['tax_amount'],
+                    new Quantity((int) $row['quantity']),
+                );
+            },
             $rows,
         );
 
@@ -86,6 +89,7 @@ final class DoctrineCartRepository implements CartRepository
             'SELECT product_id FROM cart_items WHERE cart_id = :cartId',
             ['cartId' => $cartId],
         );
+        /** @var list<string> $existingProductIds */
         $existingProductIds = array_column($existing, 'product_id');
         $desiredProductIds  = array_map(
             static fn(CartItem $item) => $item->productId()->value(),

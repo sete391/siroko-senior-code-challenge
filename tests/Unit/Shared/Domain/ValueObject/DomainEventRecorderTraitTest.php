@@ -9,6 +9,15 @@ use PHPUnit\Framework\TestCase;
 use Siroko\Shared\Domain\Event\DomainEvent;
 use Siroko\Shared\Domain\Event\DomainEventRecorderTrait;
 
+/** Describes the public surface returned by makeRecorder(). */
+interface TestRecorder
+{
+    public function recordPublic(DomainEvent $event): void;
+
+    /** @return list<DomainEvent> */
+    public function releaseEvents(): array;
+}
+
 final class DomainEventRecorderTraitTest extends TestCase
 {
     #[Test]
@@ -59,9 +68,9 @@ final class DomainEventRecorderTraitTest extends TestCase
 
     // ------------------------------------------------------------------ helpers
 
-    private function makeRecorder(): object
+    private function makeRecorder(): TestRecorder
     {
-        return new class {
+        return new class implements TestRecorder {
             use DomainEventRecorderTrait;
 
             public function recordPublic(DomainEvent $event): void

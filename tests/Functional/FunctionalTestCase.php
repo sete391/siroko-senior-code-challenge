@@ -53,13 +53,19 @@ abstract class FunctionalTestCase extends WebTestCase
 
     // ------------------------------------------------------------------ HTTP helpers
 
-    /** Sends a JSON request and returns the decoded response body. */
+    /**
+     * Sends a JSON request and returns the decoded response body as an array.
+     *
+     * @param array<string, mixed> $body
+     * @param array<string, string> $headers
+     * @return array<string, mixed>
+     */
     protected function json(
         string $method,
         string $uri,
         array $body = [],
         array $headers = [],
-    ): mixed {
+    ): array {
         $server = [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_ACCEPT'  => 'application/json',
@@ -79,12 +85,45 @@ abstract class FunctionalTestCase extends WebTestCase
 
         $content = $this->client->getResponse()->getContent();
 
-        return $content !== false && $content !== '' ? json_decode($content, true) : null;
+        $decoded = ($content !== false && $content !== '') ? json_decode($content, true) : [];
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
     }
 
     protected function statusCode(): int
     {
         return $this->client->getResponse()->getStatusCode();
+    }
+
+    /**
+     * Narrows a mixed value to array<string, mixed> with a PHPUnit assertion.
+     * Use when accessing a nested key from the decoded JSON body.
+     *
+     * @return array<string, mixed>
+     */
+    protected function assertBody(mixed $value): array
+    {
+        self::assertIsArray($value);
+        /** @var array<string, mixed> $value */
+        return $value;
+    }
+
+    /**
+     * Narrows a mixed value to list<array<string, mixed>> with a PHPUnit assertion.
+     * Use for JSON arrays (e.g. items, affectedItems).
+     *
+     * @return list<array<string, mixed>>
+     */
+    protected function assertList(mixed $value): array
+    {
+        self::assertIsArray($value);
+        /** @var list<array<string, mixed>> $value */
+        return $value;
     }
 
     // ------------------------------------------------------------------ domain factories
@@ -127,6 +166,7 @@ abstract class FunctionalTestCase extends WebTestCase
         return $cart;
     }
 
+    /** @return array{cart: Cart, order: Order} */
     protected function seedCheckedOutOrder(
         ProductId $productId,
         int $priceAmount = 4500,
@@ -167,6 +207,7 @@ abstract class FunctionalTestCase extends WebTestCase
         );
     }
 
+    /** @return array<string, string> */
     protected function addressPayload(): array
     {
         return [

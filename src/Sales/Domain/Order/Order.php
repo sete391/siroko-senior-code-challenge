@@ -25,6 +25,7 @@ final class Order
     /** @var list<OrderItem> */
     private array $items;
 
+    /** @param list<OrderItem> $items */
     public function __construct(
         private readonly OrderId $id,
         private readonly CartId $cartId,

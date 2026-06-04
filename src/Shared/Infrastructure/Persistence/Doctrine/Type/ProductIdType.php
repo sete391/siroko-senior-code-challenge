@@ -18,7 +18,9 @@ final class ProductIdType extends StringType
             return $value;
         }
 
-        return new ProductId((string) $value);
+        assert(is_string($value));
+
+        return new ProductId($value);
     }
 
     public function convertToDatabaseValue(mixed $value, AbstractPlatform $platform): ?string
@@ -31,7 +33,9 @@ final class ProductIdType extends StringType
             return $value->value();
         }
 
-        return (string) $value;
+        assert(is_string($value));
+
+        return $value;
     }
 
     public function getName(): string
