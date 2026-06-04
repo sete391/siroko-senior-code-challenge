@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Siroko\Catalog\Domain\ProductId;
 use Siroko\Sales\Domain\Order\OrderItem;
 use Siroko\Shared\Domain\ValueObject\Money;
+use Siroko\Shared\Domain\ValueObject\Quantity;
 
 final class OrderItemTest extends TestCase
 {
@@ -91,7 +92,7 @@ final class OrderItemTest extends TestCase
             productId: new ProductId(self::PRODUCT_ID),
             unitPrice: $unitPrice,
             taxAmount: $taxAmount,
-            quantity:  $quantity,
+            quantity:  new Quantity($quantity),
         );
     }
 }

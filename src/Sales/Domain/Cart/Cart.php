@@ -18,6 +18,7 @@ use Siroko\Sales\Domain\ValueObject\CartId;
 use Siroko\Sales\Domain\ValueObject\CustomerId;
 use Siroko\Shared\Domain\Event\DomainEventRecorderTrait;
 use Siroko\Shared\Domain\ValueObject\Money;
+use Siroko\Shared\Domain\ValueObject\Quantity;
 
 final class Cart
 {
@@ -110,14 +111,14 @@ final class Cart
                 throw InsufficientStock::forProduct($productId, $merged, $availableStock);
             }
 
-            $existing->updateQuantity($merged);
+            $existing->updateQuantity(new Quantity($merged));
             $this->record(new CartItemQuantityUpdated($this->id, $productId, $merged, new \DateTimeImmutable()));
         } else {
             if ($quantity > $availableStock) {
                 throw InsufficientStock::forProduct($productId, $quantity, $availableStock);
             }
 
-            $this->items[] = new CartItem($productId, $unitPrice, $taxAmount, $quantity);
+            $this->items[] = new CartItem($productId, $unitPrice, $taxAmount, new Quantity($quantity));
             $this->record(new CartItemAdded($this->id, $productId, $quantity, new \DateTimeImmutable()));
         }
 
@@ -149,10 +150,10 @@ final class Cart
         $existing = $this->findItem($productId);
 
         if ($existing !== null) {
-            $existing->updateQuantity($quantity);
+            $existing->updateQuantity(new Quantity($quantity));
             $this->record(new CartItemQuantityUpdated($this->id, $productId, $quantity, new \DateTimeImmutable()));
         } else {
-            $this->items[] = new CartItem($productId, $unitPrice, $taxAmount, $quantity);
+            $this->items[] = new CartItem($productId, $unitPrice, $taxAmount, new Quantity($quantity));
             $this->record(new CartItemAdded($this->id, $productId, $quantity, new \DateTimeImmutable()));
         }
 

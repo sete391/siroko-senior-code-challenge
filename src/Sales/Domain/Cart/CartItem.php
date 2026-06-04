@@ -6,6 +6,7 @@ namespace Siroko\Sales\Domain\Cart;
 
 use Siroko\Catalog\Domain\ProductId;
 use Siroko\Shared\Domain\ValueObject\Money;
+use Siroko\Shared\Domain\ValueObject\Quantity;
 
 final class CartItem
 {
@@ -13,7 +14,7 @@ final class CartItem
         private readonly ProductId $productId,
         private Money $unitPrice,
         private int $taxAmount,
-        private int $quantity,
+        private Quantity $quantity,
     ) {
     }
 
@@ -34,17 +35,22 @@ final class CartItem
 
     public function quantity(): int
     {
+        return $this->quantity->value;
+    }
+
+    public function quantityValue(): Quantity
+    {
         return $this->quantity;
     }
 
-    public function updateQuantity(int $quantity): void
+    public function updateQuantity(Quantity $quantity): void
     {
         $this->quantity = $quantity;
     }
 
     public function refreshSnapshot(Money $unitPrice, int $taxAmount): void
     {
-        $this->unitPrice  = $unitPrice;
-        $this->taxAmount  = $taxAmount;
+        $this->unitPrice = $unitPrice;
+        $this->taxAmount = $taxAmount;
     }
 }

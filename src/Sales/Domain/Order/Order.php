@@ -61,7 +61,7 @@ final class Order
                 $cartItem->productId(),
                 $cartItem->unitPrice(),
                 $cartItem->taxAmount(),
-                $cartItem->quantity(),
+                $cartItem->quantityValue(),
             );
             $orderItems[]   = $orderItem;
             $totalProducts += $orderItem->lineTotal()->amount;
