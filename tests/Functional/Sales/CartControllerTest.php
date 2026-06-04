@@ -6,6 +6,7 @@ namespace Siroko\Tests\Functional\Sales;
 
 use PHPUnit\Framework\Attributes\Test;
 use Siroko\Catalog\Domain\ProductId;
+use Siroko\Catalog\Domain\ProductStatus;
 use Siroko\Sales\Domain\Cart\CartStatus;
 use Siroko\Sales\Domain\Cart\Cart;
 use Siroko\Sales\Domain\ValueObject\CartId;
@@ -175,6 +176,22 @@ final class CartControllerTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function add_item_returns_404_for_inactive_product(): void
+    {
+        $product = $this->seedProduct(status: ProductStatus::INACTIVE);
+        $cartId  = $this->idGenerator->generate();
+
+        $body = $this->json(
+            'POST',
+            '/api/carts/' . $cartId . '/items',
+            ['productId' => $product->id()->value(), 'quantity' => 1],
+        );
+
+        self::assertSame(404, $this->statusCode());
+        self::assertSame('product_not_active', $body['error']);
+    }
+
+    #[Test]
     public function add_item_returns_403_on_ownership_mismatch(): void
     {
         $product    = $this->seedProduct();
@@ -246,6 +263,47 @@ final class CartControllerTest extends FunctionalTestCase
         self::assertSame('insufficient_stock', $body['error']);
     }
 
+    #[Test]
+    public function update_item_returns_404_for_inactive_product(): void
+    {
+        $product = $this->seedProduct(stock: 5);
+        $cart    = $this->seedCartWithItem($product->id(), quantity: 2);
+
+        $this->em->getConnection()->update(
+            'products',
+            ['status' => 'INACTIVE'],
+            ['id' => $product->id()->value()],
+        );
+        $this->em->clear();
+
+        $body = $this->json(
+            'PUT',
+            '/api/carts/' . $cart->id()->value() . '/items/' . $product->id()->value(),
+            ['quantity' => 3],
+        );
+
+        self::assertSame(404, $this->statusCode());
+        self::assertSame('product_not_active', $body['error']);
+    }
+
+    #[Test]
+    public function update_item_returns_403_on_ownership_mismatch(): void
+    {
+        $product    = $this->seedProduct(stock: 10);
+        $customerId = new CustomerId($this->idGenerator->generate());
+        $cart       = $this->seedCartWithItem($product->id(), customerId: $customerId);
+
+        $body = $this->json(
+            'PUT',
+            '/api/carts/' . $cart->id()->value() . '/items/' . $product->id()->value(),
+            ['quantity' => 3],
+            ['X-Customer-Id' => $this->idGenerator->generate()],
+        );
+
+        self::assertSame(403, $this->statusCode());
+        self::assertSame('cart_ownership_mismatch', $body['error']);
+    }
+
     // ------------------------------------------------------------------ DELETE /api/carts/{cartId}/items/{productId}
 
     #[Test]
@@ -278,6 +336,23 @@ final class CartControllerTest extends FunctionalTestCase
 
         self::assertSame(404, $this->statusCode());
         self::assertSame('cart_item_not_found', $body['error']);
+    }
+
+    #[Test]
+    public function remove_item_returns_403_on_ownership_mismatch(): void
+    {
+        $product    = $this->seedProduct();
+        $customerId = new CustomerId($this->idGenerator->generate());
+        $cart       = $this->seedCartWithItem($product->id(), customerId: $customerId);
+
+        $body = $this->json(
+            'DELETE',
+            '/api/carts/' . $cart->id()->value() . '/items/' . $product->id()->value(),
+            headers: ['X-Customer-Id' => $this->idGenerator->generate()],
+        );
+
+        self::assertSame(403, $this->statusCode());
+        self::assertSame('cart_ownership_mismatch', $body['error']);
     }
 
     // ------------------------------------------------------------------ POST /api/carts/{cartId}/checkout
@@ -381,6 +456,24 @@ final class CartControllerTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function checkout_returns_403_on_ownership_mismatch(): void
+    {
+        $product    = $this->seedProduct(stock: 5);
+        $customerId = new CustomerId($this->idGenerator->generate());
+        $cart       = $this->seedCartWithItem($product->id(), customerId: $customerId);
+
+        $body = $this->json(
+            'POST',
+            '/api/carts/' . $cart->id()->value() . '/checkout',
+            ['shippingAddress' => $this->addressPayload()],
+            ['X-Customer-Id' => $this->idGenerator->generate()],
+        );
+
+        self::assertSame(403, $this->statusCode());
+        self::assertSame('cart_ownership_mismatch', $body['error']);
+    }
+
+    #[Test]
     public function checkout_returns_409_with_affected_items_on_price_coherence_failure(): void
     {
         $product = $this->seedProduct(priceAmount: 4500, stock: 10);
@@ -408,6 +501,89 @@ final class CartControllerTest extends FunctionalTestCase
         self::assertCount(1, $affectedItems);
         self::assertSame($product->id()->value(), $affected0['productId']);
         self::assertSame('price_changed', $affected0['reason']);
+    }
+
+    #[Test]
+    public function checkout_returns_409_with_affected_items_on_stock_coherence_failure(): void
+    {
+        $product = $this->seedProduct(priceAmount: 4500, stock: 5);
+        $cart    = $this->seedCartWithItem($product->id(), priceAmount: 4500, quantity: 5);
+
+        // Deplete stock below the cart quantity between add and checkout.
+        $this->em->getConnection()->update(
+            'products',
+            ['quantity' => 2],
+            ['id' => $product->id()->value()],
+        );
+        $this->em->clear();
+
+        $body          = $this->json(
+            'POST',
+            '/api/carts/' . $cart->id()->value() . '/checkout',
+            ['shippingAddress' => $this->addressPayload()],
+        );
+        $affectedItems = $this->assertList($body['affectedItems']);
+        $affected0     = $this->assertBody($affectedItems[0]);
+
+        self::assertSame(409, $this->statusCode());
+        self::assertSame('checkout_coherence_failed', $body['error']);
+        self::assertCount(1, $affectedItems);
+        self::assertSame($product->id()->value(), $affected0['productId']);
+        self::assertSame('insufficient_stock', $affected0['reason']);
+    }
+
+    #[Test]
+    public function checkout_returns_409_with_affected_items_when_product_was_deleted(): void
+    {
+        $product = $this->seedProduct(priceAmount: 4500, stock: 5);
+        $cart    = $this->seedCartWithItem($product->id(), priceAmount: 4500, quantity: 1);
+
+        // Simulate product deletion between add-to-cart and checkout.
+        $this->em->getConnection()->delete('products', ['id' => $product->id()->value()]);
+        $this->em->clear();
+
+        $body          = $this->json(
+            'POST',
+            '/api/carts/' . $cart->id()->value() . '/checkout',
+            ['shippingAddress' => $this->addressPayload()],
+        );
+        $affectedItems = $this->assertList($body['affectedItems']);
+        $affected0     = $this->assertBody($affectedItems[0]);
+
+        self::assertSame(409, $this->statusCode());
+        self::assertSame('checkout_coherence_failed', $body['error']);
+        self::assertCount(1, $affectedItems);
+        self::assertSame($product->id()->value(), $affected0['productId']);
+        self::assertSame('product_not_found', $affected0['reason']);
+    }
+
+    #[Test]
+    public function checkout_returns_409_with_affected_items_when_product_becomes_inactive(): void
+    {
+        $product = $this->seedProduct(priceAmount: 4500, stock: 5);
+        $cart    = $this->seedCartWithItem($product->id(), priceAmount: 4500, quantity: 1);
+
+        // Deactivate the product between add-to-cart and checkout.
+        $this->em->getConnection()->update(
+            'products',
+            ['status' => 'INACTIVE'],
+            ['id' => $product->id()->value()],
+        );
+        $this->em->clear();
+
+        $body          = $this->json(
+            'POST',
+            '/api/carts/' . $cart->id()->value() . '/checkout',
+            ['shippingAddress' => $this->addressPayload()],
+        );
+        $affectedItems = $this->assertList($body['affectedItems']);
+        $affected0     = $this->assertBody($affectedItems[0]);
+
+        self::assertSame(409, $this->statusCode());
+        self::assertSame('checkout_coherence_failed', $body['error']);
+        self::assertCount(1, $affectedItems);
+        self::assertSame($product->id()->value(), $affected0['productId']);
+        self::assertSame('product_inactive', $affected0['reason']);
     }
 
     #[Test]
