@@ -6,8 +6,6 @@ namespace Siroko\Tests\Unit\Sales\Domain\Cart;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Siroko\Catalog\Domain\Exception\ProductNotActive;
-use Siroko\Catalog\Domain\Exception\ProductNotFound;
 use Siroko\Catalog\Domain\Product;
 use Siroko\Catalog\Domain\ProductId;
 use Siroko\Catalog\Domain\ProductStatus;
@@ -46,26 +44,30 @@ final class CheckoutCoherenceCheckerTest extends TestCase
     // ------------------------------------------------------------------ missing product
 
     #[Test]
-    public function it_throws_product_not_found_when_product_is_missing(): void
+    public function it_returns_product_not_found_issue_when_product_is_missing(): void
     {
-        $this->expectException(ProductNotFound::class);
-
         $cart = $this->cartWithItem(price: new Money(4500), tax: 945, qty: 2);
 
-        $this->checker->check($cart, []);
+        $issues = $this->checker->check($cart, []);
+
+        self::assertCount(1, $issues);
+        self::assertSame(CoherenceIssue::REASON_PRODUCT_NOT_FOUND, $issues[0]->reason);
+        self::assertSame(self::PRODUCT_ID, $issues[0]->productId->value());
     }
 
     // ------------------------------------------------------------------ inactive product
 
     #[Test]
-    public function it_throws_product_not_active_when_product_is_inactive(): void
+    public function it_returns_product_inactive_issue_when_product_is_inactive(): void
     {
-        $this->expectException(ProductNotActive::class);
-
         $cart    = $this->cartWithItem(price: new Money(4500), tax: 945, qty: 2);
         $product = $this->product(price: new Money(4500), tax: 945, stock: 10, status: ProductStatus::INACTIVE);
 
-        $this->checker->check($cart, [self::PRODUCT_ID => $product]);
+        $issues = $this->checker->check($cart, [self::PRODUCT_ID => $product]);
+
+        self::assertCount(1, $issues);
+        self::assertSame(CoherenceIssue::REASON_PRODUCT_INACTIVE, $issues[0]->reason);
+        self::assertSame(self::PRODUCT_ID, $issues[0]->productId->value());
     }
 
     // ------------------------------------------------------------------ price changed

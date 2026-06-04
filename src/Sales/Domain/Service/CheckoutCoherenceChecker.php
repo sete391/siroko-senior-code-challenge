@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Siroko\Sales\Domain\Service;
 
 use Siroko\Catalog\Domain\Product;
-use Siroko\Catalog\Domain\Exception\ProductNotActive;
-use Siroko\Catalog\Domain\Exception\ProductNotFound;
 use Siroko\Sales\Domain\Cart\Cart;
 
 final class CheckoutCoherenceChecker
@@ -27,11 +25,13 @@ final class CheckoutCoherenceChecker
             $product = $productsById[$item->productId()->value()] ?? null;
 
             if ($product === null) {
-                throw ProductNotFound::withId($item->productId());
+                $issues[] = new CoherenceIssue($item->productId(), CoherenceIssue::REASON_PRODUCT_NOT_FOUND);
+                continue;
             }
 
             if (!$product->isActive()) {
-                throw ProductNotActive::withId($item->productId());
+                $issues[] = new CoherenceIssue($item->productId(), CoherenceIssue::REASON_PRODUCT_INACTIVE);
+                continue;
             }
 
             $priceChanged = !$item->unitPrice()->equals($product->unitPrice())

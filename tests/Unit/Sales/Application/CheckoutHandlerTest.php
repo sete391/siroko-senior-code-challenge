@@ -7,8 +7,6 @@ namespace Siroko\Tests\Unit\Sales\Application;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Siroko\Catalog\Domain\Exception\ProductNotActive;
-use Siroko\Catalog\Domain\Exception\ProductNotFound;
 use Siroko\Catalog\Domain\Product;
 use Siroko\Catalog\Domain\ProductRepository;
 use Siroko\Sales\Application\Command\Checkout\CheckoutCommand;
@@ -188,9 +186,9 @@ final class CheckoutHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_product_not_found_during_coherence_check(): void
+    public function it_throws_coherence_failed_when_product_is_missing(): void
     {
-        $this->expectException(ProductNotFound::class);
+        $this->expectException(CheckoutCoherenceFailed::class);
 
         $this->cartRepo->method('findById')->willReturn($this->cartWithItem());
         $this->productRepo->method('findById')->willReturn(null);
@@ -199,9 +197,9 @@ final class CheckoutHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_product_not_active_during_coherence_check(): void
+    public function it_throws_coherence_failed_when_product_is_inactive(): void
     {
-        $this->expectException(ProductNotActive::class);
+        $this->expectException(CheckoutCoherenceFailed::class);
 
         $this->cartRepo->method('findById')->willReturn($this->cartWithItem());
         $this->productRepo->method('findById')->willReturn($this->inactiveProduct());

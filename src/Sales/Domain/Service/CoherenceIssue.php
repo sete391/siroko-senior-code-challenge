@@ -8,6 +8,8 @@ use Siroko\Catalog\Domain\ProductId;
 
 final class CoherenceIssue
 {
+    public const REASON_PRODUCT_NOT_FOUND   = 'product_not_found';
+    public const REASON_PRODUCT_INACTIVE    = 'product_inactive';
     public const REASON_PRICE_CHANGED       = 'price_changed';
     public const REASON_INSUFFICIENT_STOCK  = 'insufficient_stock';
 
